@@ -1,0 +1,1836 @@
+"use client";
+
+/**
+ * SHA'AR — Interactive GPS Globe & Navigation
+ * שַׁעַר · Every location. Every frequency. Navigate there.
+ * Live GPS. 3D Globe. Auto-frequency load. Offline capable.
+ */
+
+import {
+  useState, useEffect, useRef,
+  useCallback, useMemo,
+} from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import {
+  Navigation, MapPin, Compass, Radio,
+  Shield, Play, Square, ChevronDown,
+  AlertTriangle, CheckCircle, Wifi,
+  WifiOff, Download, Target, Globe,
+  ArrowRight, Volume2, Lock, Zap
+} from "lucide-react";
+
+/* ── Location database ───────────────────────────────────── */
+interface GateLocation {
+  id:          string;
+  name:        string;
+  country:     string;
+  lat:         number;
+  lon:         number;
+  color:       string;
+  type:        "giant_door" | "anomaly" | "ancient" | "vortex" | "classified";
+  priority:    "CRITICAL" | "HIGH" | "MEDIUM" | "CLASSIFIED";
+  primaryHz:   number;
+  stackHz:     number[];
+  brainLockHz: number;
+  desc:        string;
+  approach:    string[];
+  protection:  string[];
+  warnings:    string[];
+  emoji:       string;
+  treaty:      boolean;
+  offline:     boolean;
+}
+
+const GATE_LOCATIONS: GateLocation[] = [
+  {
+    id:          "mount-hermon",
+    name:        "Mount Hermon",
+    country:     "Israel / Syria",
+    lat:         33.4,
+    lon:         35.85,
+    color:       "#fbbf24",
+    type:        "giant_door",
+    priority:    "CRITICAL",
+    primaryHz:   111,
+    stackHz:     [7.83, 111, 432, 528],
+    brainLockHz: 7.83,
+    desc:        "Where the Watchers descended. Book of Enoch Chapter 6. UN buffer zone on summit. Most guarded location on the 33rd parallel.",
+    approach: [
+      "Approach from northern Israeli side",
+      "UN checkpoint at 1,200m elevation",
+      "Summit restricted — military zone",
+      "Best access: Hermon ski resort area",
+      "Cave systems at 2,000m — primary interest",
+    ],
+    protection: [
+      "Faraday mesh helmet — mandatory",
+      "Schumann generator 7.83Hz on chest",
+      "Shungite stones — minimum 200g",
+      "Black tourmaline in each pocket",
+      "Structured 528Hz water — 2 liters",
+    ],
+    warnings: [
+      "Israeli and Syrian military presence",
+      "UN buffer zone — treaty restricted",
+      "Strong infrasound deterrent at summit",
+      "Disorientation reported by researchers",
+      "Electronic equipment fails above 2,400m",
+    ],
+    emoji:   "🏔️",
+    treaty:  true,
+    offline: true,
+  },
+  {
+    id:          "sedona-vortex",
+    name:        "Sedona Vortex",
+    country:     "Arizona, USA",
+    lat:         34.8697,
+    lon:         -111.7609,
+    color:       "#f97316",
+    type:        "vortex",
+    priority:    "HIGH",
+    primaryHz:   7.83,
+    stackHz:     [7.83, 111, 432, 40],
+    brainLockHz: 7.83,
+    desc:        "Strongest natural Schumann field in continental USA. Four primary vortex sites. Bell Rock, Cathedral Rock, Airport Mesa, Boynton Canyon.",
+    approach: [
+      "Airport Mesa — most accessible vortex",
+      "Bell Rock — strongest electromagnetic",
+      "Cathedral Rock — water vortex",
+      "Boynton Canyon — canyon resonance",
+      "All sites open — no restrictions",
+    ],
+    protection: [
+      "Schumann generator optional here",
+      "Natural field is protective",
+      "Shungite recommended",
+      "Stay hydrated — high desert",
+    ],
+    warnings: [
+      "Extreme heat in summer — 110°F",
+      "Rattlesnakes on all trails",
+      "Flash floods in canyon areas",
+      "Tourism at peak sites — limited privacy",
+    ],
+    emoji:   "🌀",
+    treaty:  false,
+    offline: true,
+  },
+  {
+    id:          "bucegi-mountains",
+    name:        "Bucegi Mountains",
+    country:     "Romania",
+    lat:         45.3875,
+    lon:         25.4544,
+    color:       "#06b6d4",
+    type:        "giant_door",
+    priority:    "CRITICAL",
+    primaryHz:   144,
+    stackHz:     [7.83, 111, 144, 528],
+    brainLockHz: 7.83,
+    desc:        "2003 — Pentagon and Romanian government classified discovery. Chamber under Sphinx rock formation contains holographic records. Still sealed.",
+    approach: [
+      "Cable car from Busteni town",
+      "Sphinx rock formation — primary site",
+      "Babele formations — secondary",
+      "Chamber entrance — GPS 45.4N 25.4E",
+      "Military presence — Plateau area",
+    ],
+    protection: [
+      "Full Faraday suit recommended",
+      "Schumann generator — mandatory",
+      "All three crystals — shungite tourmaline quartz",
+      "HBOT protocol before approach",
+      "Telomere prep — 30 days minimum",
+    ],
+    warnings: [
+      "Romanian military monitoring plateau",
+      "NATO intelligence presence since 2003",
+      "Extreme weather — rapid changes",
+      "Altitude sickness above 2,000m",
+      "Chamber sealed — do not attempt entry without protocol",
+    ],
+    emoji:   "🏛️",
+    treaty:  false,
+    offline: true,
+  },
+  {
+    id:          "mount-shasta",
+    name:        "Mount Shasta",
+    country:     "California, USA",
+    lat:         41.4092,
+    lon:         -122.1949,
+    color:       "#38bdf8",
+    type:        "giant_door",
+    priority:    "CRITICAL",
+    primaryHz:   111,
+    stackHz:     [7.83, 33, 111, 432],
+    brainLockHz: 7.83,
+    desc:        "Most reported giant sightings in North America. Lemurian connection documented. Infrasound measured by independent researchers. Multiple cave systems.",
+    approach: [
+      "Bunny Flat trailhead — main access",
+      "Lake Helen — primary frequency site",
+      "Panther Meadows — sacred springs",
+      "Horse Camp — overnight base",
+      "Summit attempt — permit required May-Nov",
+    ],
+    protection: [
+      "Schumann generator — mandatory",
+      "Faraday mesh helmet",
+      "Shungite vest — cosmic ray flux",
+      "Altitude oxygen protocol",
+      "Emergency descent plan — always",
+    ],
+    warnings: [
+      "Extreme altitude — 14,179 feet summit",
+      "Sudden weather changes — lethal",
+      "Infrasound deterrent on upper slopes",
+      "Time distortion reported above 10,000ft",
+      "Electronic compass unreliable above 8,000ft",
+    ],
+    emoji:   "🌋",
+    treaty:  false,
+    offline: true,
+  },
+  {
+    id:          "superstition-mountains",
+    name:        "Superstition Mountains",
+    country:     "Arizona, USA",
+    lat:         33.3928,
+    lon:         -111.3678,
+    color:       "#ef4444",
+    type:        "giant_door",
+    priority:    "CRITICAL",
+    primaryHz:   136,
+    stackHz:     [7.83, 33, 136, 111],
+    brainLockHz: 7.83,
+    desc:        "33.4°N exactly. People disappear regularly. Lost Dutchman mine connected to deeper system. Infrasound at 17Hz measured. Military overflight restricted.",
+    approach: [
+      "Peralta Trailhead — main entry",
+      "Weaver's Needle — primary landmark",
+      "La Barge Canyon — deepest access",
+      "First Water Trailhead — alternative",
+      "Overnight camping requires permit",
+    ],
+    protection: [
+      "Never go alone — mandatory partner",
+      "Faraday mesh helmet",
+      "Schumann generator on chest",
+      "Emergency beacon — GPS satellite",
+      "Tell someone your exact route",
+    ],
+    warnings: [
+      "People disappear — not metaphor",
+      "17Hz infrasound causes paranoia",
+      "Extreme desert heat — fatal risk",
+      "Rattlesnakes and scorpions",
+      "No cell service in canyon",
+    ],
+    emoji:   "⚡",
+    treaty:  false,
+    offline: true,
+  },
+  {
+    id:          "giza-pyramids",
+    name:        "Giza Pyramids",
+    country:     "Egypt",
+    lat:         29.9792,
+    lon:         31.1342,
+    color:       "#f59e0b",
+    type:        "ancient",
+    priority:    "HIGH",
+    primaryHz:   111,
+    stackHz:     [111, 528, 136.1, 432],
+    brainLockHz: 7.83,
+    desc:        "King's Chamber resonates at exactly 111Hz. Sarcophagus tuned to this frequency when struck. Shaft alignments create acoustic standing waves.",
+    approach: [
+      "Giza plateau — open to tourists",
+      "King's Chamber — additional ticket",
+      "Early morning — fewer crowds",
+      "Private access — 6am before opening",
+      "Night access — special permit required",
+    ],
+    protection: [
+      "Schumann generator recommended",
+      "Shungite — EMF from tourist crowds",
+      "Stay hydrated — desert heat",
+      "111Hz playing before entry",
+    ],
+    warnings: [
+      "Extreme tourist density — energy interference",
+      "Acoustic experiments prohibited officially",
+      "Photography restricted in chambers",
+      "Heat exhaustion risk — no shade",
+    ],
+    emoji:   "🔺",
+    treaty:  false,
+    offline: true,
+  },
+  {
+    id:          "lhasa-tibet",
+    name:        "Lhasa, Tibet",
+    country:     "China",
+    lat:         29.6526,
+    lon:         91.1171,
+    color:       "#a855f7",
+    type:        "ancient",
+    priority:    "HIGH",
+    primaryHz:   136.1,
+    stackHz:     [7.83, 136.1, 528, 963],
+    brainLockHz: 7.83,
+    desc:        "Potala Palace built on giant foundations predating Buddhism. Monks maintained acoustic knowledge for centuries. Underground systems below Jokhang Temple.",
+    approach: [
+      "Tibet Travel Permit required — mandatory",
+      "Lhasa airport — 3,600m altitude",
+      "Acclimatize minimum 3 days",
+      "Potala Palace — ticket required",
+      "Jokhang Temple — underground interest",
+    ],
+    protection: [
+      "Altitude acclimatization — critical",
+      "Schumann generator",
+      "Shungite recommended",
+      "Chinese government monitoring — awareness",
+    ],
+    warnings: [
+      "Chinese government restricts access",
+      "Tibet Travel Permit — bureaucratic",
+      "Altitude sickness risk — serious",
+      "No independent travel allowed",
+      "Government guide mandatory",
+    ],
+    emoji:   "☸️",
+    treaty:  false,
+    offline: true,
+  },
+  {
+    id:          "bermuda-triangle",
+    name:        "Bermuda Triangle",
+    country:     "Atlantic Ocean",
+    lat:         25.0000,
+    lon:         -71.0000,
+    color:       "#0ea5e9",
+    type:        "anomaly",
+    priority:    "HIGH",
+    primaryHz:   432,
+    stackHz:     [7.83, 40, 432, 528],
+    brainLockHz: 7.83,
+    desc:        "Electromagnetic anomalies confirmed. Time distortion reports. Underwater structures found off Bimini. Electronic compass failure zone.",
+    approach: [
+      "Boat access only — no landmass",
+      "Bimini Island — nearest land base",
+      "Bimini Road — underwater structure",
+      "Coordinate center: 25°N 71°W",
+      "Dive required for underwater sites",
+    ],
+    protection: [
+      "Full Faraday protection — mandatory",
+      "Schumann generator — waterproof",
+      "Satellite phone — not GPS",
+      "Emergency beacon — EPIRB required",
+      "Never alone — minimum 3 person team",
+    ],
+    warnings: [
+      "Electronic navigation unreliable",
+      "Time distortion — maintain watch",
+      "Sudden storms — no warning",
+      "Distance from shore — emergency risk",
+      "Multiple vessel disappearances confirmed",
+    ],
+    emoji:   "🌊",
+    treaty:  false,
+    offline: true,
+  },
+  {
+    id:          "wilkes-land-antarctica",
+    name:        "Wilkes Land, Antarctica",
+    country:     "Antarctica",
+    lat:         -70.0,
+    lon:         120.0,
+    color:       "#38bdf8",
+    type:        "classified",
+    priority:    "CLASSIFIED",
+    primaryHz:   76,
+    stackHz:     [8.22, 33, 40, 76, 111, 174],
+    brainLockHz: 8.22,
+    desc:        "480km anomaly confirmed by NASA and Ohio State. Consistent 1.14 PeV neutrino emissions detected by IceCube. ANITA balloon confirmed 2006 and 2014. Still broadcasting.",
+    approach: [
+      "Antarctic Treaty — access restricted",
+      "McMurdo Station — US controlled gateway",
+      "Wilkes Station area — Australian territory",
+      "Ice runway — military flights only",
+      "Sovereign tier clearance required",
+    ],
+    protection: [
+      "Full body Faraday suit — not just helmet",
+      "Shungite vest — cosmic ray flux extreme",
+      "8.22Hz generator — NOT 7.83Hz",
+      "Iodine protocol — 30 days before",
+      "Telomere prep — 30 days minimum",
+      "Structured 528Hz water — bring own",
+      "Emergency extraction plan — mandatory",
+    ],
+    warnings: [
+      "Antarctic Treaty — legal risk",
+      "Government monitoring — all expeditions",
+      "Extreme cold — survival threshold",
+      "ZPE source still active — unknown effects",
+      "Neutrino flux — biological impact unknown",
+      "Return may be compromised — prepare",
+    ],
+    emoji:   "🧊",
+    treaty:  true,
+    offline: true,
+  },
+];
+
+/* ── Bearing calculation ─────────────────────────────────── */
+function calculateBearing(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
+  const R = Math.PI / 180;
+  const dLon = (lon2 - lon1) * R;
+  const y = Math.sin(dLon) * Math.cos(lat2 * R);
+  const x = Math.cos(lat1 * R) * Math.sin(lat2 * R) -
+            Math.sin(lat1 * R) * Math.cos(lat2 * R) * Math.cos(dLon);
+  const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  return Math.round(bearing);
+}
+
+/* ── Distance calculation ────────────────────────────────── */
+function calculateDistance(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
+  const R    = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a    =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+/* ── Bearing to compass ──────────────────────────────────── */
+function bearingToCompass(bearing: number): string {
+  const dirs = ["N","NNE","NE","ENE","E","ESE","SE","SSE",
+                "S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  return dirs[Math.round(bearing / 22.5) % 16];
+}
+
+/* ── 3D Globe Component ──────────────────────────────────── */
+function Globe3D({
+  locations, selected, userLat, userLon, onSelect,
+}: {
+  locations:  GateLocation[];
+  selected:   GateLocation | null;
+  userLat:    number | null;
+  userLon:    number | null;
+  onSelect:   (loc: GateLocation) => void;
+}) {
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const frameRef   = useRef(0);
+  const rotationRef = useRef(0);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    const W   = canvas.offsetWidth;
+    const H   = canvas.offsetHeight;
+    canvas.width  = W * window.devicePixelRatio;
+    canvas.height = H * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const r  = Math.min(W, H) * 0.38;
+
+    const latLonToXY = (lat: number, lon: number, rotation: number) => {
+      const lonRad = (lon + rotation) * Math.PI / 180;
+      const latRad = lat * Math.PI / 180;
+      const x = cx + r * Math.cos(latRad) * Math.sin(lonRad);
+      const y = cy - r * Math.sin(latRad);
+      const z = Math.cos(latRad) * Math.cos(lonRad);
+      return { x, y, z, visible: z > -0.2 };
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+
+      // Globe base
+      const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
+      grad.addColorStop(0, "rgba(5,5,32,0.9)");
+      grad.addColorStop(0.5, "rgba(0,0,15,0.95)");
+      grad.addColorStop(1, "rgba(0,0,8,1)");
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Globe border glow
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(124,58,237,0.4)";
+      ctx.lineWidth   = 2;
+      ctx.shadowBlur  = 20;
+      ctx.shadowColor = "#7c3aed";
+      ctx.stroke();
+      ctx.shadowBlur  = 0;
+
+      // Latitude lines
+      for (let lat = -60; lat <= 60; lat += 30) {
+        ctx.beginPath();
+        let first = true;
+        for (let lon = 0; lon <= 360; lon += 5) {
+          const { x, y, z } = latLonToXY(lat, lon, rotationRef.current);
+          if (z > 0) {
+            if (first) { ctx.moveTo(x, y); first = false; }
+            else ctx.lineTo(x, y);
+          } else {
+            first = true;
+          }
+        }
+        // 33rd parallel highlight
+        ctx.strokeStyle = lat === 30
+          ? "rgba(251,191,36,0.35)"
+          : "rgba(124,58,237,0.08)";
+        ctx.lineWidth   = lat === 30 ? 1.5 : 0.5;
+        ctx.stroke();
+      }
+
+      // Longitude lines
+      for (let lon = 0; lon < 360; lon += 30) {
+        ctx.beginPath();
+        let first = true;
+        for (let lat = -80; lat <= 80; lat += 5) {
+          const { x, y, z } = latLonToXY(lat, lon, rotationRef.current);
+          if (z > 0) {
+            if (first) { ctx.moveTo(x, y); first = false; }
+            else ctx.lineTo(x, y);
+          } else {
+            first = true;
+          }
+        }
+        ctx.strokeStyle = "rgba(124,58,237,0.06)";
+        ctx.lineWidth   = 0.5;
+        ctx.stroke();
+      }
+
+      // 33rd parallel label
+      const p33 = latLonToXY(33, 90, rotationRef.current);
+      if (p33.visible) {
+        ctx.fillStyle = "rgba(251,191,36,0.5)";
+        ctx.font      = "10px JetBrains Mono";
+        ctx.fillText("33°N", p33.x + 5, p33.y);
+      }
+
+      // User location
+      if (userLat !== null && userLon !== null) {
+        const pos = latLonToXY(userLat, userLon, rotationRef.current);
+        if (pos.visible) {
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+          ctx.fillStyle   = "#22c55e";
+          ctx.shadowBlur  = 15;
+          ctx.shadowColor = "#22c55e";
+          ctx.fill();
+          ctx.shadowBlur  = 0;
+          ctx.fillStyle   = "rgba(34,197,94,0.5)";
+          ctx.font        = "9px JetBrains Mono";
+          ctx.fillText("YOU", pos.x + 8, pos.y + 3);
+        }
+      }
+
+      // Gate locations
+      locations.forEach(loc => {
+        const pos = latLonToXY(loc.lat, loc.lon, rotationRef.current);
+        if (!pos.visible) return;
+
+        const isSelected = selected?.id === loc.id;
+        const isHovered  = hoveredId === loc.id;
+        const size       = isSelected ? 10 : isHovered ? 8 : 6;
+
+        // Pulse ring
+        if (isSelected || loc.priority === "CRITICAL") {
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, size * 2.5, 0, Math.PI * 2);
+          ctx.strokeStyle = `${loc.color}40`;
+          ctx.lineWidth   = 1;
+          ctx.stroke();
+        }
+
+        // Pin
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+        ctx.fillStyle   = loc.color;
+        ctx.shadowBlur  = isSelected ? 20 : 10;
+        ctx.shadowColor = loc.color;
+        ctx.fill();
+        ctx.shadowBlur  = 0;
+
+        // Label
+        if (isSelected || isHovered) {
+          ctx.fillStyle = "rgba(0,0,8,0.8)";
+          const tw = ctx.measureText(loc.name).width;
+          ctx.fillRect(pos.x + 12, pos.y - 10, tw + 8, 18);
+          ctx.fillStyle = loc.color;
+          ctx.font      = "bold 10px Space Grotesk";
+          ctx.fillText(loc.name, pos.x + 16, pos.y + 3);
+        }
+      });
+
+      // Connection line — user to selected
+      if (selected && userLat !== null && userLon !== null) {
+        const userPos = latLonToXY(userLat, userLon, rotationRef.current);
+        const selPos  = latLonToXY(selected.lat, selected.lon, rotationRef.current);
+        if (userPos.visible && selPos.visible) {
+          ctx.beginPath();
+          ctx.moveTo(userPos.x, userPos.y);
+          ctx.lineTo(selPos.x, selPos.y);
+          ctx.strokeStyle = `${selected.color}60`;
+          ctx.lineWidth   = 1.5;
+          ctx.setLineDash([4, 6]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      rotationRef.current = (rotationRef.current + 0.15) % 360;
+      frameRef.current    = requestAnimationFrame(draw);
+    };
+
+    draw();
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [locations, selected, userLat, userLon, hoveredId]);
+
+  // ── Click handler ─────────────────────────────────────────
+  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect  = canvas.getBoundingClientRect();
+    const mx    = e.clientX - rect.left;
+    const my    = e.clientY - rect.top;
+    const W     = rect.width;
+    const H     = rect.height;
+    const cx    = W / 2;
+    const cy    = H / 2;
+    const r     = Math.min(W, H) * 0.38;
+
+    // Find closest location to click
+    let closest:  GateLocation | null = null;
+    let closestD  = Infinity;
+
+    locations.forEach(loc => {
+      const lonRad = (loc.lon + rotationRef.current) * Math.PI / 180;
+      const latRad = loc.lat * Math.PI / 180;
+      const x      = cx + r * Math.cos(latRad) * Math.sin(lonRad);
+      const y      = cy - r * Math.sin(latRad);
+      const z      = Math.cos(latRad) * Math.cos(lonRad);
+      if (z < -0.2) return;
+
+      const d = Math.sqrt((mx - x) ** 2 + (my - y) ** 2);
+      if (d < closestD && d < 25) {
+        closestD = d;
+        closest  = loc;
+      }
+    });
+
+    if (closest) onSelect(closest);
+  }, [locations, onSelect]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="w-full rounded-2xl cursor-crosshair"
+      style={{ height: 480 }}
+      onClick={handleClick}
+      onMouseMove={e => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx   = e.clientX - rect.left;
+        const my   = e.clientY - rect.top;
+        const W    = rect.width;
+        const H    = rect.height;
+        const cx   = W / 2;
+        const cy   = H / 2;
+        const r    = Math.min(W, H) * 0.38;
+
+        let found: string | null = null;
+        locations.forEach(loc => {
+          const lonRad = (loc.lon + rotationRef.current) * Math.PI / 180;
+          const latRad = loc.lat * Math.PI / 180;
+          const x      = cx + r * Math.cos(latRad) * Math.sin(lonRad);
+          const y      = cy - r * Math.sin(latRad);
+          const z      = Math.cos(latRad) * Math.cos(lonRad);
+          if (z < -0.2) return;
+          if (Math.sqrt((mx - x) ** 2 + (my - y) ** 2) < 15) found = loc.id;
+        });
+        setHoveredId(found);
+      }}
+      onMouseLeave={() => setHoveredId(null)}
+    />
+  );
+}
+
+/* ── Compass Component ───────────────────────────────────── */
+function CompassDisplay({
+  bearing, color,
+}: {
+  bearing: number | null; color: string;
+}) {
+  return (
+    <div className="relative flex items-center justify-center">
+      {/* Compass ring */}
+      <div
+        className="relative rounded-full flex items-center justify-center"
+        style={{
+          width:      140,
+          height:     140,
+          border:     `2px solid ${color}40`,
+          background: "rgba(0,0,8,0.8)",
+          boxShadow:  `0 0 20px ${color}20`,
+        }}
+      >
+        {/* Cardinal directions */}
+        {["N","E","S","W"].map((dir, i) => (
+          <div
+            key={dir}
+            className="absolute text-[10px] font-mono font-bold"
+            style={{
+              color:     dir === "N" ? "#ef4444" : "rgba(226,232,240,0.4)",
+              top:       i === 0 ? 8 : i === 2 ? "auto" : "50%",
+              bottom:    i === 2 ? 8 : "auto",
+              left:      i === 3 ? 8 : i === 1 ? "auto" : "50%",
+              right:     i === 1 ? 8 : "auto",
+              transform: i === 0 || i === 2 ? "translateX(-50%)" : "translateY(-50%)",
+            }}
+          >
+            {dir}
+          </div>
+        ))}
+
+        {/* Rotating needle */}
+        {bearing !== null && (
+          <motion.div
+            className="absolute"
+            style={{ rotate: bearing }}
+            animate={{ rotate: bearing }}
+            transition={{ type: "spring", stiffness: 100 }}
+          >
+            {/* North needle — red */}
+            <div style={{
+              position:    "absolute",
+              width:       3,
+              height:      45,
+              background:  "linear-gradient(180deg, #ef4444, transparent)",
+              borderRadius: 2,
+              left:        -1.5,
+              bottom:      0,
+              transformOrigin: "bottom center",
+            }} />
+            {/* South needle — white */}
+            <div style={{
+              position:    "absolute",
+              width:       3,
+              height:      35,
+              background:  "linear-gradient(0deg, rgba(226,232,240,0.6), transparent)",
+              borderRadius: 2,
+              left:        -1.5,
+              top:         0,
+              transformOrigin: "top center",
+            }} />
+          </motion.div>
+        )}
+
+        {/* Center dot */}
+        <div
+          className="relative z-10 rounded-full"
+          style={{ width: 8, height: 8, background: color }}
+        />
+      </div>
+
+      {/* Bearing readout */}
+      {bearing !== null && (
+        <div className="absolute -bottom-8 text-center">
+          <div className="font-mono font-bold text-lg"
+               style={{ color }}>
+            {bearing}°
+          </div>
+          <div className="text-[10px] font-mono"
+               style={{ color: "rgba(226,232,240,0.4)" }}>
+            {bearingToCompass(bearing)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Tone player for location ────────────────────────────── */
+function LocationTonePlayer({
+  location,
+}: {
+  location: GateLocation;
+}) {
+  const ctxRef    = useRef<AudioContext | null>(null);
+  const masterRef = useRef<GainNode | null>(null);
+  const [playing, setPlaying] = useState<Set<number>>(new Set());
+  const [volume,  setVolume]  = useState(0.6);
+  const oscsRef   = useRef<Map<number, OscillatorNode[]>>(new Map());
+  const gainsRef  = useRef<Map<number, GainNode>>(new Map());
+
+  const init = useCallback(() => {
+    if (ctxRef.current) return;
+    const ctx    = new AudioContext({ sampleRate: 48000 });
+    const master = ctx.createGain();
+    master.gain.value = volume;
+    master.connect(ctx.destination);
+    ctxRef.current  = ctx;
+    masterRef.current = master;
+  }, [volume]);
+
+  const playHz = useCallback((hz: number) => {
+    init();
+    const ctx    = ctxRef.current!;
+    const master = masterRef.current!;
+
+    if (playing.has(hz)) {
+      // Stop
+      const gain = gainsRef.current.get(hz);
+      if (gain) {
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+        setTimeout(() => {
+          oscsRef.current.get(hz)?.forEach(o => {
+            try { o.stop(); o.disconnect(); } catch {}
+          });
+          gain.disconnect();
+        }, 350);
+      }
+      setPlaying(prev => { const n = new Set(prev); n.delete(hz); return n; });
+      return;
+    }
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(master);
+
+    // Binaural beat
+    const merger = ctx.createChannelMerger(2);
+    merger.connect(gain);
+    const oscL = ctx.createOscillator();
+    const oscR = ctx.createOscillator();
+    const gL   = ctx.createGain();
+    const gR   = ctx.createGain();
+    oscL.type = oscR.type = "sine";
+    oscL.frequency.value = hz;
+    oscR.frequency.value = hz + (hz < 20 ? hz * 0.5 : 40);
+    gL.gain.value = gR.gain.value = 0.5;
+    oscL.connect(gL); gL.connect(merger, 0, 0);
+    oscR.connect(gR); gR.connect(merger, 0, 1);
+    oscL.start(); oscR.start();
+
+    gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.8);
+
+    oscsRef.current.set(hz, [oscL, oscR]);
+    gainsRef.current.set(hz, gain);
+    setPlaying(prev => new Set(prev).add(hz));
+  }, [playing, init]);
+
+  const stopAll = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    playing.forEach(hz => {
+      const gain = gainsRef.current.get(hz);
+      if (gain) {
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+        setTimeout(() => {
+          oscsRef.current.get(hz)?.forEach(o => {
+            try { o.stop(); o.disconnect(); } catch {}
+          });
+          gain.disconnect();
+        }, 350);
+      }
+    });
+    setPlaying(new Set());
+  }, [playing]);
+
+  const playAll = useCallback(() => {
+    stopAll();
+    [location.brainLockHz, ...location.stackHz].forEach((hz, i) => {
+      setTimeout(() => playHz(hz), i * 400);
+    });
+  }, [location, stopAll, playHz]);
+
+  useEffect(() => () => { stopAll(); }, []);
+
+  const allFreqs = [
+    location.brainLockHz,
+    ...location.stackHz.filter(hz => hz !== location.brainLockHz),
+  ];
+
+  return (
+    <div className="rounded-2xl overflow-hidden"
+         style={{
+           background:     "rgba(0,0,8,0.8)",
+           border:         `1px solid ${location.color}25`,
+           backdropFilter: "blur(20px)",
+         }}>
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center justify-between"
+           style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        <div className="flex items-center gap-2">
+          <Volume2 size={14} style={{ color: location.color }} />
+          <span className="text-xs font-mono font-bold"
+                style={{ color: location.color }}>
+            LOCATION FREQUENCIES
+          </span>
+          {playing.size > 0 && (
+            <motion.div
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: "#22c55e" }}
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            />
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={playAll}
+            className="text-[10px] font-mono px-2.5 py-1.5 rounded-lg
+                       font-bold transition-all hover:scale-105"
+            style={{
+              background: `${location.color}20`,
+              color:       location.color,
+              border:     `1px solid ${location.color}40`,
+            }}
+          >
+            ▶ Full Protocol
+          </button>
+          {playing.size > 0 && (
+            <button
+              onClick={stopAll}
+              className="text-[10px] font-mono px-2.5 py-1.5 rounded-lg"
+              style={{
+                background: "rgba(239,68,68,0.12)",
+                color:      "#ef4444",
+                border:     "1px solid rgba(239,68,68,0.3)",
+              }}
+            >
+              ■ Stop
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Volume */}
+      <div className="px-4 py-2 flex items-center gap-3"
+           style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+        <Volume2 size={12} style={{ color: "rgba(226,232,240,0.3)" }} />
+        <input
+          type="range" min={0} max={1} step={0.01}
+          value={volume}
+          onChange={e => {
+            const v = Number(e.target.value);
+            setVolume(v);
+            if (masterRef.current && ctxRef.current) {
+              masterRef.current.gain.linearRampToValueAtTime(
+                v, ctxRef.current.currentTime + 0.1
+              );
+            }
+          }}
+          className="flex-1"
+          style={{ accentColor: location.color }}
+        />
+        <span className="text-[9px] font-mono w-6"
+              style={{ color: "rgba(226,232,240,0.3)" }}>
+          {Math.round(volume * 100)}%
+        </span>
+      </div>
+
+      {/* Frequency buttons */}
+      <div className="p-4 grid grid-cols-4 gap-2">
+        {allFreqs.map((hz, i) => {
+          const isOn = playing.has(hz);
+          const isBrain = hz === location.brainLockHz;
+          return (
+            <motion.button
+              key={hz}
+              onClick={() => { init(); playHz(hz); }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative rounded-xl py-2.5 px-1 text-center overflow-hidden"
+              style={{
+                background: isOn ? `${location.color}18` : "rgba(255,255,255,0.03)",
+                border:     `1px solid ${isOn ? `${location.color}50` : "rgba(255,255,255,0.07)"}`,
+                boxShadow:  isOn ? `0 0 10px ${location.color}20` : "none",
+              }}
+            >
+              {isBrain && (
+                <div className="absolute top-1 right-1 w-1.5 h-1.5
+                                rounded-full bg-amber-400" />
+              )}
+              {isOn && (
+                <motion.div
+                  className="absolute inset-0 rounded-xl"
+                  style={{ background: location.color }}
+                  animate={{ opacity: [0.06, 0.14, 0.06] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+              )}
+              <div className="relative z-10">
+                <div className="font-mono font-bold text-xs"
+                     style={{
+                       color:      location.color,
+                       textShadow: isOn ? `0 0 6px ${location.color}` : "none",
+                     }}>
+                  {hz}
+                </div>
+                <div className="text-[8px] text-white/30">Hz</div>
+                {isOn && (
+                  <div className="flex justify-center gap-0.5 mt-1">
+                    {[1,2,3].map((_, j) => (
+                      <motion.div
+                        key={j}
+                        className="w-0.5 rounded-t-sm"
+                        style={{ background: location.color }}
+                        animate={{ height: [2, 6, 2] }}
+                        transition={{ duration: 0.5, delay: j * 0.1, repeat: Infinity }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  MAIN MAP PAGE                                              */
+/* ══════════════════════════════════════════════════════════ */
+export default function ShaarMapPage() {
+  const [selected,    setSelected]    = useState<GateLocation | null>(null);
+  const [userLat,     setUserLat]     = useState<number | null>(null);
+  const [userLon,     setUserLon]     = useState<number | null>(null);
+  const [gpsError,    setGpsError]    = useState<string | null>(null);
+  const [gpsLoading,  setGpsLoading]  = useState(false);
+  const [isOnline,    setIsOnline]    = useState(true);
+  const [heading,     setHeading]     = useState<number | null>(null);
+  const [checklist,   setChecklist]   = useState<Record<string, boolean>>({});
+  const [activeTab,   setActiveTab]   = useState<"navigate"|"protocol"|"protect">("navigate");
+
+  // ── Online status ─────────────────────────────────────────
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const onOnline  = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener("online",  onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online",  onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
+
+  // ── GPS ───────────────────────────────────────────────────
+  const getLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGpsError("GPS not available on this device");
+      return;
+    }
+
+    setGpsLoading(true);
+    setGpsError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLat(pos.coords.latitude);
+        setUserLon(pos.coords.longitude);
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsError(`GPS Error: ${err.message}`);
+        setGpsLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout:            15000,
+        maximumAge:         60000,
+      },
+    );
+  }, []);
+
+  // ── Auto GPS ──────────────────────────────────────────────
+  useEffect(() => {
+    getLocation();
+
+    // Watch position for continuous tracking
+    const watchId = navigator.geolocation?.watchPosition(
+      pos => {
+        setUserLat(pos.coords.latitude);
+        setUserLon(pos.coords.longitude);
+        if (pos.coords.heading !== null) {
+          setHeading(pos.coords.heading);
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true },
+    );
+
+    return () => {
+      if (watchId) navigator.geolocation?.clearWatch(watchId);
+    };
+  }, []);
+
+  // ── Derived navigation ────────────────────────────────────
+  const bearing  = selected && userLat !== null && userLon !== null
+    ? calculateBearing(userLat, userLon, selected.lat, selected.lon)
+    : null;
+
+  const distance = selected && userLat !== null && userLon !== null
+    ? calculateDistance(userLat, userLon, selected.lat, selected.lon)
+    : null;
+
+  // ── Save offline ──────────────────────────────────────────
+  const saveOffline = useCallback((loc: GateLocation) => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("shaar_locations") ?? "[]");
+      if (!saved.find((s: GateLocation) => s.id === loc.id)) {
+        saved.push(loc);
+        localStorage.setItem("shaar_locations", JSON.stringify(saved));
+      }
+    } catch {}
+  }, []);
+
+  // ── Open in maps ──────────────────────────────────────────
+  const openInMaps = useCallback((loc: GateLocation) => {
+    const url = `https://maps.google.com/?q=${loc.lat},${loc.lon}`;
+    window.open(url, "_blank");
+  }, []);
+
+  // ── Open navigation ───────────────────────────────────────
+  const openNavigation = useCallback((loc: GateLocation) => {
+    const url = userLat !== null && userLon !== null
+      ? `https://maps.google.com/maps?saddr=${userLat},${userLon}&daddr=${loc.lat},${loc.lon}`
+      : `https://maps.google.com/?q=${loc.lat},${loc.lon}`;
+    window.open(url, "_blank");
+  }, [userLat, userLon]);
+
+  const toggleCheck = (item: string) => {
+    setChecklist(prev => ({ ...prev, [item]: !prev[item] }));
+  };
+
+  return (
+    <main className="relative min-h-screen overflow-hidden"
+          style={{ background: "#000008" }}>
+
+      {/* Background */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div style={{
+          position:   "absolute",
+          inset:      0,
+          background: "radial-gradient(ellipse at 50% 0%, #0d0820 0%, #000008 65%)",
+        }} />
+        <div className="absolute inset-0" style={{
+          backgroundImage:
+            "linear-gradient(rgba(251,191,36,0.015) 1px, transparent 1px)," +
+            "linear-gradient(90deg, rgba(251,191,36,0.015) 1px, transparent 1px)",
+          backgroundSize: "55px 55px",
+        }} />
+      </div>
+
+      {/* Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 h-16
+                      flex items-center justify-between px-6"
+           style={{
+             background:     "rgba(0,0,8,0.9)",
+             backdropFilter: "blur(40px)",
+             borderBottom:   "1px solid rgba(251,191,36,0.12)",
+           }}>
+        <Link href="/" className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+               style={{ background: "linear-gradient(135deg, #fbbf24, #a855f7)" }}>
+            <span className="font-hebrew text-white font-black text-lg">ש</span>
+          </div>
+          <div>
+            <div className="font-bold text-white text-lg">SHA'AR</div>
+            <div className="text-[9px] font-mono"
+                 style={{ color: "rgba(251,191,36,0.45)" }}>
+              שַׁעַר · GATE NAVIGATION
+            </div>
+          </div>
+        </Link>
+
+        <div className="flex items-center gap-3">
+          {/* Online/offline badge */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
+               style={{
+                 background: isOnline
+                   ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                 border: `1px solid ${isOnline ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                 color: isOnline ? "#22c55e" : "#ef4444",
+               }}>
+            {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+            {isOnline ? "ONLINE" : "OFFLINE"}
+          </div>
+
+          {/* GPS status */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
+               style={{
+                 background: userLat !== null
+                   ? "rgba(34,197,94,0.1)" : "rgba(245,158,11,0.1)",
+                 border: `1px solid ${userLat !== null ? "rgba(34,197,94,0.3)" : "rgba(245,158,11,0.3)"}`,
+                 color: userLat !== null ? "#22c55e" : "#f59e0b",
+               }}>
+            <Navigation size={12} />
+            {gpsLoading ? "LOCATING..." : userLat !== null ? "GPS LOCKED" : "NO GPS"}
+          </div>
+
+          <Link href="/">
+            <button className="px-4 py-2 rounded-lg text-sm"
+                    style={{
+                      background:  "rgba(255,255,255,0.04)",
+                      border:      "1px solid rgba(255,255,255,0.08)",
+                      color:       "rgba(226,232,240,0.5)",
+                    }}>
+              ← SHA'AR Home
+            </button>
+          </Link>
+        </div>
+      </nav>
+
+      <div className="relative z-10 pt-20 pb-10 px-4">
+        <div className="max-w-7xl mx-auto">
+
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-6"
+          >
+            <div className="font-hebrew text-4xl font-black mb-2"
+                 style={{ color: "#fbbf24", textShadow: "0 0 20px rgba(251,191,36,0.4)" }}>
+              מַפַּת הַשַּׁעַר
+            </div>
+            <h1 className="font-bold text-white mb-1"
+                style={{ fontSize: "clamp(20px, 3vw, 36px)" }}>
+              Gate Navigation System
+            </h1>
+            <p style={{ color: "rgba(226,232,240,0.35)" }} className="text-sm">
+              Click any location on the globe · GPS navigation activates ·
+              Frequencies load automatically · Works offline
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+            {/* ── LEFT: Globe ─────────────────────────────── */}
+            <div className="lg:col-span-2 space-y-4">
+
+              {/* GPS bar */}
+              <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl"
+                   style={{
+                     background:     "rgba(0,0,8,0.8)",
+                     border:         "1px solid rgba(255,255,255,0.07)",
+                     backdropFilter: "blur(20px)",
+                   }}>
+                <Navigation size={14} style={{ color: "#fbbf24" }} />
+
+                {userLat !== null ? (
+                  <>
+                    <span className="font-mono text-xs font-bold"
+                          style={{ color: "#22c55e" }}>
+                      GPS LOCKED
+                    </span>
+                    <span className="font-mono text-xs"
+                          style={{ color: "rgba(226,232,240,0.4)" }}>
+                      {userLat.toFixed(4)}°N · {userLon?.toFixed(4)}°E
+                    </span>
+                    {heading !== null && (
+                      <span className="font-mono text-xs"
+                            style={{ color: "#fbbf24" }}>
+                        Heading: {Math.round(heading)}°
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="font-mono text-xs"
+                        style={{ color: "rgba(245,158,11,0.7)" }}>
+                    {gpsLoading ? "Acquiring GPS signal..." : gpsError ?? "GPS not available"}
+                  </span>
+                )}
+
+                <button
+                  onClick={getLocation}
+                  className="ml-auto text-[10px] font-mono px-2.5 py-1.5 rounded-lg"
+                  style={{
+                    background: "rgba(34,197,94,0.1)",
+                    border:     "1px solid rgba(34,197,94,0.25)",
+                    color:      "#22c55e",
+                  }}
+                >
+                  {gpsLoading ? "Locating..." : "Refresh GPS"}
+                </button>
+              </div>
+
+              {/* Globe */}
+              <div className="relative rounded-2xl overflow-hidden"
+                   style={{
+                     background:     "rgba(0,0,8,0.9)",
+                     border:         "1px solid rgba(124,58,237,0.2)",
+                     backdropFilter: "blur(20px)",
+                   }}>
+                <Globe3D
+                  locations={GATE_LOCATIONS}
+                  selected={selected}
+                  userLat={userLat}
+                  userLon={userLon}
+                  onSelect={loc => {
+                    setSelected(loc);
+                    setChecklist({});
+                    setActiveTab("navigate");
+                  }}
+                />
+
+                {/* Globe overlay info */}
+                <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-mono"
+                       style={{ background: "rgba(0,0,8,0.8)", color: "rgba(251,191,36,0.7)" }}>
+                    <div className="w-2 h-px" style={{ background: "#fbbf24" }} />
+                    33°N Parallel
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-mono"
+                       style={{ background: "rgba(0,0,8,0.8)", color: "#22c55e" }}>
+                    <div className="w-2 h-2 rounded-full" style={{ background: "#22c55e" }} />
+                    Your Location
+                  </div>
+                  <div className="px-2 py-1 rounded-lg text-[9px] font-mono"
+                       style={{ background: "rgba(0,0,8,0.8)", color: "rgba(226,232,240,0.35)" }}>
+                    Click pin to navigate
+                  </div>
+                </div>
+              </div>
+
+              {/* Location quick-select grid */}
+              <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                {GATE_LOCATIONS.map(loc => (
+                  <motion.button
+                    key={loc.id}
+                    onClick={() => {
+                      setSelected(loc);
+                      setChecklist({});
+                      setActiveTab("navigate");
+                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="rounded-xl p-2.5 text-center transition-all"
+                    style={{
+                      background: selected?.id === loc.id
+                        ? `${loc.color}18` : "rgba(0,0,8,0.7)",
+                      border: `1px solid ${selected?.id === loc.id
+                        ? `${loc.color}50` : "rgba(255,255,255,0.07)"}`,
+                      boxShadow: selected?.id === loc.id
+                        ? `0 0 12px ${loc.color}20` : "none",
+                    }}
+                  >
+                    <div className="text-lg mb-1">{loc.emoji}</div>
+                    <div className="text-[9px] font-mono font-bold leading-tight"
+                         style={{ color: loc.color }}>
+                      {loc.name.split(" ").slice(0, 2).join(" ")}
+                    </div>
+                    {loc.treaty && (
+                      <div className="text-[8px] font-mono mt-0.5"
+                           style={{ color: "rgba(239,68,68,0.6)" }}>
+                        TREATY
+                      </div>
+                    )}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── RIGHT: Selected location detail ─────────── */}
+            <div className="space-y-4">
+              {selected ? (
+                <>
+                  {/* Location header */}
+                  <div className="rounded-2xl p-5 overflow-hidden"
+                       style={{
+                         background:     "rgba(0,0,8,0.85)",
+                         backdropFilter: "blur(20px)",
+                         border:         `1px solid ${selected.color}30`,
+                       }}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="text-3xl mb-1">{selected.emoji}</div>
+                        <div className="font-bold text-white text-xl leading-tight">
+                          {selected.name}
+                        </div>
+                        <div className="text-xs"
+                             style={{ color: "rgba(226,232,240,0.4)" }}>
+                          {selected.country}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[9px] font-mono px-2 py-1 rounded mb-1"
+                             style={{
+                               background: selected.priority === "CRITICAL"
+                                 ? "rgba(239,68,68,0.15)"
+                                 : selected.priority === "CLASSIFIED"
+                                 ? "rgba(124,58,237,0.15)"
+                                 : "rgba(245,158,11,0.15)",
+                               color: selected.priority === "CRITICAL"
+                                 ? "#ef4444"
+                                 : selected.priority === "CLASSIFIED"
+                                 ? "#a855f7"
+                                 : "#f59e0b",
+                               border: `1px solid ${selected.priority === "CRITICAL"
+                                 ? "rgba(239,68,68,0.3)"
+                                 : "rgba(245,158,11,0.3)"}`,
+                             }}>
+                          {selected.priority}
+                        </div>
+                        {selected.treaty && (
+                          <div className="text-[9px] font-mono px-2 py-0.5 rounded"
+                               style={{
+                                 background: "rgba(239,68,68,0.1)",
+                                 color:      "#ef4444",
+                                 border:     "1px solid rgba(239,68,68,0.2)",
+                               }}>
+                            TREATY RESTRICTED
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Coordinates */}
+                    <div className="flex gap-3 mb-3">
+                      <div className="flex-1 p-2 rounded-lg text-center"
+                           style={{
+                             background: "rgba(255,255,255,0.04)",
+                             border:     "1px solid rgba(255,255,255,0.07)",
+                           }}>
+                        <div className="text-[9px] font-mono text-white/30">LATITUDE</div>
+                        <div className="font-mono font-bold text-sm"
+                             style={{ color: selected.color }}>
+                          {selected.lat.toFixed(4)}°N
+                        </div>
+                      </div>
+                      <div className="flex-1 p-2 rounded-lg text-center"
+                           style={{
+                             background: "rgba(255,255,255,0.04)",
+                             border:     "1px solid rgba(255,255,255,0.07)",
+                           }}>
+                        <div className="text-[9px] font-mono text-white/30">LONGITUDE</div>
+                        <div className="font-mono font-bold text-sm"
+                             style={{ color: selected.color }}>
+                          {selected.lon.toFixed(4)}°E
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-xs leading-relaxed mb-4"
+                       style={{ color: "rgba(226,232,240,0.5)" }}>
+                      {selected.desc}
+                    </p>
+
+                    {/* Navigation buttons */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => openNavigation(selected)}
+                        className="flex items-center justify-center gap-1.5
+                                   py-2.5 rounded-xl font-bold text-xs
+                                   transition-all hover:scale-105"
+                        style={{
+                          background: `linear-gradient(135deg, ${selected.color}, #7c3aed)`,
+                          color:      "white",
+                          boxShadow:  `0 0 15px ${selected.color}30`,
+                        }}
+                      >
+                        <Navigation size={14} />
+                        Navigate There
+                      </button>
+                      <button
+                        onClick={() => openInMaps(selected)}
+                        className="flex items-center justify-center gap-1.5
+                                   py-2.5 rounded-xl font-bold text-xs
+                                   transition-all hover:scale-105"
+                        style={{
+                          background:  `${selected.color}12`,
+                          border:      `1px solid ${selected.color}30`,
+                          color:        selected.color,
+                        }}
+                      >
+                        <Globe size={14} />
+                        Open in Maps
+                      </button>
+                    </div>
+
+                    {/* Save offline */}
+                    <button
+                      onClick={() => saveOffline(selected)}
+                      className="w-full mt-2 flex items-center justify-center
+                                 gap-1.5 py-2 rounded-xl text-xs font-mono
+                                 transition-all hover:scale-105"
+                      style={{
+                        background: "rgba(255,255,255,0.03)",
+                        border:     "1px solid rgba(255,255,255,0.08)",
+                        color:      "rgba(226,232,240,0.4)",
+                      }}
+                    >
+                      <Download size={12} />
+                      Save for Offline Use
+                    </button>
+                  </div>
+
+                  {/* Navigation metrics */}
+                  {bearing !== null && distance !== null && (
+                    <div className="rounded-2xl p-5"
+                         style={{
+                           background:     "rgba(0,0,8,0.85)",
+                           backdropFilter: "blur(20px)",
+                           border:         `1px solid ${selected.color}20`,
+                         }}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="font-bold text-white text-sm flex items-center gap-2">
+                          <Compass size={16} style={{ color: selected.color }} />
+                          Live Navigation
+                        </div>
+                        <div className="font-mono font-bold text-lg"
+                             style={{ color: selected.color }}>
+                          {distance.toLocaleString()} km
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <CompassDisplay
+                          bearing={bearing}
+                          color={selected.color}
+                        />
+                        <div className="text-right space-y-3 ml-6">
+                          <div>
+                            <div className="text-[10px] font-mono text-white/30">BEARING</div>
+                            <div className="font-mono font-bold text-2xl"
+                                 style={{ color: selected.color }}>
+                              {bearing}°
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-mono text-white/30">DIRECTION</div>
+                            <div className="font-mono font-bold text-xl"
+                                 style={{ color: selected.color }}>
+                              {bearingToCompass(bearing)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-mono text-white/30">DISTANCE</div>
+                            <div className="font-mono font-bold text-base text-white">
+                              {distance > 1000
+                                ? `${(distance / 1000).toFixed(1)}K km`
+                                : `${distance} km`}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab selector */}
+                  <div className="flex gap-1 p-1 rounded-xl"
+                       style={{
+                         background: "rgba(0,0,8,0.8)",
+                         border:     "1px solid rgba(255,255,255,0.06)",
+                       }}>
+                    {[
+                      { id: "navigate" as const,  label: "Approach"   },
+                      { id: "protocol" as const,  label: "Frequencies"},
+                      { id: "protect"  as const,  label: "Protection" },
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className="flex-1 py-2 rounded-lg text-xs font-medium
+                                   transition-all"
+                        style={{
+                          background: activeTab === tab.id
+                            ? `${selected.color}15` : "transparent",
+                          color: activeTab === tab.id
+                            ? selected.color : "rgba(226,232,240,0.35)",
+                          border: activeTab === tab.id
+                            ? `1px solid ${selected.color}30` : "1px solid transparent",
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <AnimatePresence mode="wait">
+
+                    {/* Approach tab */}
+                    {activeTab === "navigate" && (
+                      <motion.div
+                        key="navigate"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="rounded-2xl p-5 space-y-2"
+                        style={{
+                          background:     "rgba(0,0,8,0.85)",
+                          backdropFilter: "blur(20px)",
+                          border:         `1px solid ${selected.color}18`,
+                        }}
+                      >
+                        <div className="font-bold text-white text-sm mb-3 flex items-center gap-2">
+                          <MapPin size={14} style={{ color: selected.color }} />
+                          Approach Protocol
+                        </div>
+                        {selected.approach.map((step, i) => (
+                          <label
+                            key={i}
+                            className="flex items-start gap-3 cursor-pointer
+                                       p-2 rounded-xl transition-all hover:bg-white/3"
+                            onClick={() => toggleCheck(`approach_${i}`)}
+                          >
+                            <div
+                              className="w-5 h-5 rounded flex items-center
+                                         justify-center flex-shrink-0 mt-0.5"
+                              style={{
+                                background: checklist[`approach_${i}`]
+                                  ? selected.color : "rgba(255,255,255,0.06)",
+                                border: `1px solid ${selected.color}40`,
+                              }}
+                            >
+                              {checklist[`approach_${i}`] && (
+                                <CheckCircle size={12} className="text-white" />
+                              )}
+                            </div>
+                            <span className="text-xs leading-relaxed"
+                                  style={{
+                                    color: checklist[`approach_${i}`]
+                                      ? "rgba(226,232,240,0.4)"
+                                      : "rgba(226,232,240,0.65)",
+                                    textDecoration: checklist[`approach_${i}`]
+                                      ? "line-through" : "none",
+                                  }}>
+                              {step}
+                            </span>
+                          </label>
+                        ))}
+
+                        {/* Warnings */}
+                        <div className="mt-4 pt-3"
+                             style={{ borderTop: `1px solid ${selected.color}12` }}>
+                          <div className="text-[10px] font-mono font-bold mb-2 flex items-center gap-1"
+                               style={{ color: "#ef4444" }}>
+                            <AlertTriangle size={11} />
+                            WARNINGS
+                          </div>
+                          {selected.warnings.map((w, i) => (
+                            <div key={i} className="flex items-start gap-2 mb-1.5">
+                              <AlertTriangle size={10}
+                                            className="flex-shrink-0 mt-0.5"
+                                            style={{ color: "#ef4444" }} />
+                              <span className="text-[10px] leading-relaxed"
+                                    style={{ color: "rgba(239,68,68,0.7)" }}>
+                                {w}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Frequencies tab */}
+                    {activeTab === "protocol" && (
+                      <motion.div
+                        key="protocol"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                      >
+                        <LocationTonePlayer location={selected} />
+
+                        <div className="mt-3 p-3 rounded-xl"
+                             style={{
+                               background:  `${selected.color}08`,
+                               border:      `1px solid ${selected.color}18`,
+                             }}>
+                          <div className="text-[10px] font-mono font-bold mb-1"
+                               style={{ color: selected.color }}>
+                            BRAIN LOCK FREQUENCY
+                          </div>
+                          <div className="text-2xl font-bold font-mono"
+                               style={{ color: selected.color }}>
+                            {selected.brainLockHz} Hz
+                          </div>
+                          <div className="text-[10px]"
+                               style={{ color: "rgba(226,232,240,0.35)" }}>
+                            {selected.brainLockHz === 8.22
+                              ? "Antarctic Schumann — pole specific. NOT 7.83."
+                              : "Standard Schumann — Earth heartbeat lock"}
+                          </div>
+                          <div className="text-[9px] font-mono mt-1"
+                               style={{ color: "rgba(226,232,240,0.25)" }}>
+                            ● = Brain lock frequency (play first and continuously)
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Protection tab */}
+                    {activeTab === "protect" && (
+                      <motion.div
+                        key="protect"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="rounded-2xl p-5 space-y-2"
+                        style={{
+                          background:     "rgba(0,0,8,0.85)",
+                          backdropFilter: "blur(20px)",
+                          border:         "1px solid rgba(168,85,247,0.2)",
+                        }}
+                      >
+                        <div className="font-bold text-white text-sm mb-3 flex items-center gap-2">
+                          <Shield size={14} style={{ color: "#a855f7" }} />
+                          Protection Checklist
+                        </div>
+                        {selected.protection.map((item, i) => (
+                          <label
+                            key={i}
+                            className="flex items-start gap-3 cursor-pointer
+                                       p-2 rounded-xl transition-all hover:bg-white/3"
+                            onClick={() => toggleCheck(`protect_${i}`)}
+                          >
+                            <div
+                              className="w-5 h-5 rounded flex items-center
+                                         justify-center flex-shrink-0 mt-0.5"
+                              style={{
+                                background: checklist[`protect_${i}`]
+                                  ? "#a855f7" : "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(168,85,247,0.4)",
+                              }}
+                            >
+                              {checklist[`protect_${i}`] && (
+                                <CheckCircle size={12} className="text-white" />
+                              )}
+                            </div>
+                            <span className="text-xs leading-relaxed"
+                                  style={{
+                                    color: checklist[`protect_${i}`]
+                                      ? "rgba(226,232,240,0.3)"
+                                      : "rgba(226,232,240,0.65)",
+                                    textDecoration: checklist[`protect_${i}`]
+                                      ? "line-through" : "none",
+                                  }}>
+                              {item}
+                            </span>
+                          </label>
+                        ))}
+
+                        {/* Protection score */}
+                        <div className="mt-4 pt-3"
+                             style={{ borderTop: "1px solid rgba(168,85,247,0.12)" }}>
+                          {(() => {
+                            const total    = selected.protection.length;
+                            const complete = Object.keys(checklist)
+                              .filter(k => k.startsWith("protect_") && checklist[k])
+                              .length;
+                            const pct = Math.round((complete / total) * 100);
+                            return (
+                              <>
+                                <div className="flex justify-between text-xs font-mono mb-1.5">
+                                  <span style={{ color: "rgba(226,232,240,0.3)" }}>
+                                    Protection Ready
+                                  </span>
+                                  <span style={{ color: pct === 100 ? "#22c55e" : "#a855f7" }}>
+                                    {pct}%
+                                  </span>
+                                </div>
+                                <div className="h-1.5 rounded-full overflow-hidden"
+                                     style={{ background: "rgba(255,255,255,0.06)" }}>
+                                  <motion.div
+                                    className="h-full rounded-full"
+                                    style={{
+                                      background: pct === 100 ? "#22c55e" : "#a855f7",
+                                    }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{ duration: 0.5 }}
+                                  />
+                                </div>
+                                {pct === 100 && (
+                                  <div className="mt-2 text-center text-xs font-mono font-bold"
+                                       style={{ color: "#22c55e" }}>
+                                    ✓ PROTECTED — YOU MAY APPROACH
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              ) : (
+                /* No selection state */
+                <div className="rounded-2xl p-8 text-center"
+                     style={{
+                       background:     "rgba(0,0,8,0.8)",
+                       backdropFilter: "blur(20px)",
+                       border:         "1px solid rgba(251,191,36,0.15)",
+                     }}>
+                  <div className="text-4xl mb-4">🗺️</div>
+                  <div className="font-bold text-white text-xl mb-2">
+                    Select a Location
+                  </div>
+                  <p style={{ color: "rgba(226,232,240,0.35)" }} className="text-sm mb-6">
+                    Click any pin on the globe
+                    or select from the grid below.
+                    GPS navigation, frequencies,
+                    and protection protocols
+                    load automatically.
+                  </p>
+
+                  <div className="space-y-2">
+                    {[
+                      { label: "9 Gate Locations Mapped",     icon: "📍" },
+                      { label: "Live GPS Navigation",          icon: "🧭" },
+                      { label: "Auto Frequency Load",          icon: "🎵" },
+                      { label: "Protection Checklist",         icon: "🛡️" },
+                      { label: "Works Offline",                icon: "📶" },
+                      { label: "Open in Google Maps",          icon: "🗺️" },
+                    ].map((item, i) => (
+                      <div key={i}
+                           className="flex items-center gap-3 px-3 py-2 rounded-xl"
+                           style={{ background: "rgba(255,255,255,0.03)" }}>
+                        <span>{item.icon}</span>
+                        <span className="text-xs"
+                              style={{ color: "rgba(226,232,240,0.5)" }}>
+                          {item.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

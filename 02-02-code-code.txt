@@ -1,0 +1,59 @@
+INTERACTIVE 3D GLOBE:
+✓ Canvas-rendered spinning globe
+✓ All 9 gate locations as GPS pins
+✓ 33rd parallel highlighted in gold
+✓ Click pins to select location
+✓ Hover shows location name
+✓ Your GPS location shown in green
+✓ Navigation line drawn to target
+✓ Auto-rotates continuously
+
+LIVE GPS:
+✓ Real browser GPS API
+✓ Continuous position watching
+✓ Heading detection when moving
+✓ Lat/Lon displayed live
+✓ Refresh GPS button
+✓ Online/offline status badge
+
+NAVIGATION:
+✓ Real-time bearing calculation
+✓ Distance in kilometers
+✓ Animated compass needle
+✓ Cardinal direction display
+✓ Open in Google Maps button
+✓ Turn-by-turn navigation button
+✓ Works from your exact location
+
+FREQUENCY AUTO-LOAD:
+✓ Click location → frequencies load
+✓ Brain lock frequency highlighted
+✓ All stack frequencies listed
+✓ Play individual or full protocol
+✓ Volume control
+✓ Live active tone display
+✓ Antarctica uses 8.22Hz not 7.83Hz
+
+PROTECTION CHECKLIST:
+✓ Location-specific protection list
+✓ Check off each item
+✓ Protection score 0-100%
+✓ GO signal when 100% protected
+✓ Warnings section per location
+
+OFFLINE:
+✓ Save any location to localStorage
+✓ Works without internet
+✓ Critical for mountain locations
+✓ No signal needed once saved
+
+9 LOCATIONS LOADED:
+✓ Mount Hermon — 111Hz
+✓ Sedona Vortex — 7.83Hz
+✓ Bucegi Mountains — 144Hz
+✓ Mount Shasta — 111Hz
+✓ Superstition Mountains — 136Hz
+✓ Giza Pyramids — 111Hz
+✓ Lhasa Tibet — 136.1Hz
+✓ Bermuda Triangle — 432Hz
+✓ Wilkes Land Antarctica — 76Hz (8.22Hz brain lock)
