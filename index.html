@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SHA'AR — GPS Globe &amp; Navigation</title>
 <style>
@@ -83,13 +84,14 @@ h2.tab-empty{font-size:11px;color:var(--sub);letter-spacing:2px;margin-bottom:10
 <div id="app">
   <header>
     <h1>שַׁעַר SHA'AR<small>Every location. Every frequency. Navigate there.</small></h1>
-    <span class="g-badge on" id="net-badge">ONLINE</span>
+    <span class="g-badge" id="net-badge">CHECKING CONNECTION</span>
     <span class="gps-read" id="gps-read">GPS — awaiting fix…</span>
     <div class="right">
       <button id="gps-btn" onclick="fixGPS()">Refresh GPS</button>
       <span class="g-badge off" id="gps-state">NO FIX</span>
     </div>
   </header>
+<div role="note" style="margin:8px 14px;padding:10px 14px;background:#252116;color:#fef3c7;border:1px solid #80651e;border-radius:8px;font-size:12px">NAVIGATION SAFETY: location records are saved in this browser only. This is not a verified route/safety service. Site descriptions, “protection” protocols, and frequency effects are unverified and should not guide hazardous travel or replace official advisories.</div>
   <div id="main">
     <div id="globe-wrap">
       <canvas id="globe"></canvas>
@@ -314,6 +316,7 @@ function stopAudio(){
   document.querySelectorAll('.bar i').forEach(b=>b.style.width='0%');
 }
 // gps
+document.getElementById('net-badge').className=navigator.onLine?'g-badge on':'g-badge off';document.getElementById('net-badge').textContent=navigator.onLine?'ONLINE':'OFFLINE';
 window.addEventListener('online',()=>{document.getElementById('net-badge').className='g-badge on';document.getElementById('net-badge').textContent='ONLINE'});
 window.addEventListener('offline',()=>{document.getElementById('net-badge').className='g-badge off';document.getElementById('net-badge').textContent='OFFLINE'});
 function fixGPS(){
